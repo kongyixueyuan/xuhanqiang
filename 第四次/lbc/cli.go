@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 )
 
 // CLI responsible for processing command line arguments
@@ -22,7 +21,6 @@ func (cli *CLI) printUsage() {
 
 	fmt.Println("  getbalance -address -- 查看帐号余额.")
 
-
 }
 
 func (cli *CLI) validateArgs() {
@@ -37,6 +35,23 @@ func (cli *CLI) validateArgs() {
 	fmt.Println("Success!")
 }*/
 
+func (cli *CLI) printChain() {
+
+	if DBExists() == false {
+		fmt.Println("数据不存在.......")
+		os.Exit(1)
+	}
+
+	blockchain := BlockchainObject()
+
+	defer blockchain.Db.Close()
+
+	blockchain.Printchain()
+
+}
+
+//引用数据 库之前的打印方法，
+/*
 func (cli *CLI) printChain() {
 	bci := cli.Bc.Iterator()
 
@@ -78,6 +93,8 @@ func (cli *CLI) printChain() {
 	}
 }
 
+*/
+
 // Run parses command line arguments and processes commands
 func (cli *CLI) Run() {
 	cli.validateArgs()
@@ -87,17 +104,14 @@ func (cli *CLI) Run() {
 
 	addBlockData := addBlockCmd.String("data", "", "Block data")
 
-
-	getbalanceCmd := flag.NewFlagSet("getbalance",flag.ExitOnError)
+	getbalanceCmd := flag.NewFlagSet("getbalance", flag.ExitOnError)
 
 	//flagFrom := sendBlockCmd.String("from","","转账源地址......")
 	//flagTo := sendBlockCmd.String("to","","转账目的地地址......")
 	//flagAmount := sendBlockCmd.String("amount","","转账金额......")
 
-//	flagCreateBlockchainWithAddress := createBlockchainCmd.String("address","","创建创世区块的地址")
-	getbalanceWithAdress := getbalanceCmd.String("address","","要查询某一个账号的余额.......")
-
-
+	//	flagCreateBlockchainWithAddress := createBlockchainCmd.String("address","","创建创世区块的地址")
+	getbalanceWithAdress := getbalanceCmd.String("address", "", "要查询某一个账号的余额.......")
 
 	switch os.Args[1] {
 	case "addblock":
@@ -140,8 +154,6 @@ func (cli *CLI) Run() {
 		cli.printChain()
 	}
 
-
-
 	if getbalanceCmd.Parsed() {
 
 		if *getbalanceWithAdress == "" {
@@ -153,29 +165,19 @@ func (cli *CLI) Run() {
 		cli.getBalance(*getbalanceWithAdress)
 	}
 
-
 }
 
-
-
-
 // 先用它去查询余额
-func (cli *CLI) getBalance(address string)  {
+func (cli *CLI) getBalance(address string) {
 
 	fmt.Println("地址：" + address)
 
-	fmt.Println("asfdasf");
-
 	blockchain := BlockchainObject()
-
-	fmt.Println("asfdasf2");
 
 	defer blockchain.Db.Close()
 
 	amount := blockchain.GetBalance(address)
 
-	fmt.Printf("%s一共有%d个Token\n",address,amount)
-
-
+	fmt.Printf("%s一共有%d个Token\n", address, amount)
 
 }

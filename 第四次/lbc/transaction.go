@@ -38,7 +38,7 @@ func NewCoinbaseTransaction(address string) *Transaction {
 	//代表消费
 	txInput := &TXInput{[]byte{},-1,"Genesis Data"}
 
-	txOutput := &TXOutput{10,address}
+	txOutput := &TXOutput{1000,address}
 
 	txCoinbase := &Transaction{[]byte{},[]*TXInput{txInput},[]*TXOutput{txOutput}}
 
