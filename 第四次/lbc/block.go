@@ -9,6 +9,9 @@ import (
 )
 
 type Block struct {
+
+	Height int64
+
 	Timestamp     int64
 	Txs []*Transaction
 	PrevBlockHash []byte
@@ -18,9 +21,9 @@ type Block struct {
 
 //新建一个区块(经过工作量证明验证的区块)，
 
-func NewBlock(txs []*Transaction, prevBlockHash []byte) *Block {
+func NewBlock(txs []*Transaction,height int64, prevBlockHash []byte) *Block {
 
-	block := &Block{time.Now().Unix(), txs, prevBlockHash, []byte{}, 0}
+	block := &Block{height,time.Now().Unix(), txs, prevBlockHash, []byte{}, 0}
 
 	pow := NewProofOfWork(block)
 	nonce, hash := pow.Run()
@@ -36,7 +39,7 @@ func NewBlock(txs []*Transaction, prevBlockHash []byte) *Block {
 
 	//新建创世区块
 func NewGenesisBlock(txs []*Transaction) *Block  {
-	return NewBlock(txs,[]byte{})
+	return NewBlock(txs,0,[]byte{})
 }
 
 
@@ -68,7 +71,7 @@ func DeserializeBlock(d []byte) *Block {
 
 //
 func CreateGenesisBlock(txs []*Transaction) *Block {
-	return NewBlock(txs,[]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0})
+	return NewBlock(txs,0,[]byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0})
 }
 
 

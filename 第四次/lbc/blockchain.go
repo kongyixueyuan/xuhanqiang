@@ -38,9 +38,19 @@ type BlockchainIterator struct {
 func (bc *Blockchain) AddBlock(txs []*Transaction) {
 	var lastHash []byte
 
+
+	/*
 	err := bc.Db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
 		lastHash = b.Get([]byte("l"))
+
+		// ⚠️，先获取最新区块
+		blockBytes := b.Get(blc.Tip)
+		// 反序列化
+		block := DeserializeBlock(blockBytes)
+
+		newBlock := NewBlock(txs, block.Height,lastHash)
+
 
 		return nil
 	})
@@ -48,11 +58,25 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) {
 	if err != nil {
 		log.Panic(err)
 	}
+	*/
 
-	newBlock := NewBlock(txs, lastHash)
 
-	err = bc.Db.Update(func(tx *bolt.Tx) error {
+
+	err := bc.Db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
+
+		//
+		lastHash = b.Get([]byte("l"))
+
+		// ⚠️，先获取最新区块
+		blockBytes := b.Get(bc.Tip)
+		// 反序列化
+		block := DeserializeBlock(blockBytes)
+
+		newBlock := NewBlock(txs, block.Height+1,lastHash)
+
+		//
+
 		err := b.Put(newBlock.Hash, newBlock.Serialize())
 		if err != nil {
 			log.Panic(err)
@@ -67,6 +91,13 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) {
 
 		return nil
 	})
+
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+
 }
 
 // 区块链的迭代器函数。
@@ -486,7 +517,7 @@ func (blockchain *Blockchain) MineNewBlock(from []string, to []string, amount []
 
 	//2. 建立新的区块
 	//	block = NewBlock(txs, block.Height+1, block.Hash)
-	block = NewBlock(txs, block.Hash)
+	block = NewBlock(txs, block.Height+1,block.Hash)
 
 	//将新区块存储到数据库
 	blockchain.Db.Update(func(tx *bolt.Tx) error {
@@ -526,13 +557,13 @@ func (blockchain *Blockchain) GetBalance(address string) int64 {
 // 遍历输出所有区块的信息
 func (blc *Blockchain) Printchain() {
 
-	fmt.Println("PrintchainPrintchainPrintchainPrintchain")
+	fmt.Println("遍历区块链，打印：")
 	blockchainIterator := blc.Iterator()
 
 	for {
 		block := blockchainIterator.Next()
 
-		//fmt.Printf("Height：%d\n", block.Height)
+		fmt.Printf("Height：%d\n", block.Height)
 		fmt.Printf("PrevBlockHash：%x\n", block.PrevBlockHash)
 		fmt.Printf("Timestamp：%s\n", time.Unix(block.Timestamp, 0).Format("2006-01-02 03:04:05 PM"))
 		fmt.Printf("Hash：%x\n", block.Hash)
