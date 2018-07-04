@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"math/big"
+	"encoding/hex"
 )
 
 var (
@@ -65,7 +66,8 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 	var hash [32]byte
 	nonce := 0
 
-	fmt.Printf("对含有 \"%s\" 信息的区块进行挖矿。\n", pow.block.HashTransactions())
+	//fmt.Printf("对含有 \"%s\" 信息的区块进行挖矿。\n", pow.block.HashTransactions())
+	fmt.Printf("对含有 \"%s\" 信息的区块进行挖矿。\n", hex.EncodeToString(pow.block.HashTransactions()))
 
 	for nonce < maxNonce {
 

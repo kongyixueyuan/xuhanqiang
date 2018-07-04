@@ -550,8 +550,10 @@ func (blc *Blockchain) Printchain() {
 
 			fmt.Println("Vouts:")
 			for _, out := range tx.Vouts {
-				fmt.Println(out.Value)
-				fmt.Println(out.ScriptPubKey)
+
+				fmt.Printf("%s:%d\n",out.ScriptPubKey,out.Value)
+				//fmt.Println(out.Value)
+
 			}
 		}
 
