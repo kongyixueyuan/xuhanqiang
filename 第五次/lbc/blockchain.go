@@ -127,7 +127,6 @@ func (i *BlockchainIterator) Next() *Block {
 
 	return block
 }
-/*
 
 // 创建一个带有创世区块的区块链。
 func NewBlockchain(address string) *Blockchain {
@@ -187,7 +186,6 @@ func DBExists() bool {
 
 	return true
 }
-*/
 
 ///
 //1. 创建带有创世区块的区块链
@@ -607,6 +605,3 @@ func (blc *Blockchain) Printchain() {
 	}
 
 }
-
-
-

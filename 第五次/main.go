@@ -8,7 +8,7 @@ import (
 
 func main() {
 
-//	mybc := lbc.NewBlockchain("myaddress")
+	//mybc := lbc.NewBlockchain("myaddress")
 	//defer mybc.Db.Close()
 
 	cli := lbc.CLI{}

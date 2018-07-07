@@ -16,13 +16,12 @@ type CLI struct {
 func (cli *CLI) printUsage() {
 
 	fmt.Println("使用说明：")
-	fmt.Println("  addblock -data BLOCK_DATA - 对区块链添加一个区块")
+	fmt.Println("  addresslists -- 打印所有钱包地址.")
+	fmt.Println("  createwallet -- 创建 钱包.")
+	fmt.Println("  addblock -address - 对区块链添加一个区块")
 	fmt.Println("  printchain - 打印区块链的所有区块信息")
-
 	fmt.Println("  send -from FROM -to TO -amount AMOUNT -- 发送币.")
-
 	fmt.Println("  version - 查看软件版本")
-
 	fmt.Println("  getbalance -address -- 查看帐号余额.")
 
 }
@@ -54,62 +53,19 @@ func (cli *CLI) printChain() {
 
 }
 
-//引用数据 库之前的打印方法，
-/*
-func (cli *CLI) printChain() {
-	bci := cli.Bc.Iterator()
-
-	for {
-		block := bci.Next()
-
-		fmt.Printf("Prev. hash: %x\n", block.PrevBlockHash)
-		//fmt.Printf("Data: %s\n", block.Data)
-		fmt.Printf("Hash: %x\n", block.Hash)
-		pow := NewProofOfWork(block)
-		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Validate()))
-
-		fmt.Println("Txs:")
-
-		for _, tx := range block.Txs {
-
-			fmt.Printf("%x\n", tx.TxHash)
-			fmt.Println("Vins:")
-			for _, in := range tx.Vins {
-				fmt.Printf("%x\n", in.TxHash)
-				fmt.Printf("%d\n", in.Vout)
-				fmt.Printf("%s\n", in.ScriptSig)
-			}
-
-			fmt.Println("Vouts:")
-			for _, out := range tx.Vouts {
-				fmt.Println(out.Value)
-				fmt.Println(out.ScriptPubKey)
-			}
-		}
-
-		fmt.Println("------------------------------")
-
-		fmt.Println()
-
-		if len(block.PrevBlockHash) == 0 {
-			break
-		}
-	}
-}
-
-*/
-
 // Run parses command line arguments and processes commands
-//func (cli *CLI) Run() {
 func (cli *CLI) Run() {
 	cli.validateArgs()
+
+	addresslistsCmd := flag.NewFlagSet("addresslists", flag.ExitOnError)
+	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
 
 	addBlockCmd := flag.NewFlagSet("addblock", flag.ExitOnError)
 	printChainCmd := flag.NewFlagSet("printchain", flag.ExitOnError)
 
 	sendBlockCmd := flag.NewFlagSet("send", flag.ExitOnError)
 
-	addBlockData := addBlockCmd.String("data", "", "Block data")
+	addBlockData := addBlockCmd.String("address", "", "初始化地址")
 
 	getbalanceCmd := flag.NewFlagSet("getbalance", flag.ExitOnError)
 
@@ -121,6 +77,19 @@ func (cli *CLI) Run() {
 	getbalanceWithAdress := getbalanceCmd.String("address", "", "要查询某一个账号的余额.......")
 
 	switch os.Args[1] {
+
+	case "addresslists":
+		err := addresslistsCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
+
+	case "createwallet":
+		err := createWalletCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
+
 	case "addblock":
 		err := addBlockCmd.Parse(os.Args[2:])
 		if err != nil {
@@ -155,13 +124,20 @@ func (cli *CLI) Run() {
 	}
 
 	if addBlockCmd.Parsed() {
-		if *addBlockData == "" {
-			addBlockCmd.Usage()
+		/*
+			if *addBlockData == "" {
+				addBlockCmd.Usage()
+				os.Exit(1)
+			}
+		*/
+
+		if IsValidForAdress([]byte(*addBlockData)) == false {
+			fmt.Println("地址无效....")
+			cli.printUsage()
 			os.Exit(1)
 		}
 
-		println("todo:addBlock implement!")
-		//	cli.addBlock(*addBlockData)
+		cli.createGenesisBlockchain(*addBlockData)
 	}
 
 	if printChainCmd.Parsed() {
@@ -185,14 +161,23 @@ func (cli *CLI) Run() {
 		cli.checkArgs("amount", flagAmount)
 		//cli.send(flagFrom, flagTo, flagAmount)
 
-
 		from := JSONToArray(*flagFrom)
 		to := JSONToArray(*flagTo)
 		amount := JSONToArray(*flagAmount)
-		cli.send(from,to,amount)
+		cli.send(from, to, amount)
 
 	}
 
+	if addresslistsCmd.Parsed() {
+		cli.addressLists()
+	}
+
+	if createWalletCmd.Parsed() {
+		// 创建钱包
+		cli.createWallet()
+	}
+
+	//the end of run
 }
 
 func (cli *CLI) checkArgs(flag string, arg *string) {
@@ -220,12 +205,8 @@ func (cli *CLI) getBalance(address string) {
 
 }
 
-
-
-
-
 // 转账中间函数。
-func (cli *CLI) send(from []string,to []string,amount []string)  {
+func (cli *CLI) send(from []string, to []string, amount []string) {
 
 	if DBExists() == false {
 		fmt.Println("数据不存在.......")
@@ -235,12 +216,9 @@ func (cli *CLI) send(from []string,to []string,amount []string)  {
 	blockchain := BlockchainObject()
 	defer blockchain.Db.Close()
 
-	blockchain.MineNewBlock(from,to,amount)
+	blockchain.MineNewBlock(from, to, amount)
 
 }
-
-
-
 
 // json to array
 func JSONToArray(jsonString string) []string {
@@ -253,4 +231,28 @@ func JSONToArray(jsonString string) []string {
 	return sArr
 }
 
+// 打印所有的钱包地址
+func (cli *CLI) addressLists() {
 
+	fmt.Println("打印所有的钱包地址:")
+
+	wallets, _ := NewWallets()
+
+	for address, _ := range wallets.WalletsMap {
+
+		fmt.Println(address)
+	}
+}
+
+func (cli *CLI) createGenesisBlockchain(address string) {
+	blockchain := CreateBlockchainWithGenesisBlock(address)
+	defer blockchain.Db.Close()
+}
+
+func (cli *CLI) createWallet() {
+	wallets, _ := NewWallets()
+
+	wallets.CreateNewWallet()
+
+	fmt.Println(len(wallets.WalletsMap))
+}
