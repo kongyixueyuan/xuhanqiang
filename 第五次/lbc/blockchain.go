@@ -11,6 +11,8 @@ import (
 
 	"github.com/boltdb/bolt"
 	"time"
+	"crypto/ecdsa"
+	"bytes"
 )
 
 // 数据库名字
@@ -33,11 +35,9 @@ type BlockchainIterator struct {
 	currentHash []byte
 	db          *bolt.DB
 }
-
 // 添加一个区块(带有交易信息的数据)到区块链内，
 func (bc *Blockchain) AddBlock(txs []*Transaction) {
 	var lastHash []byte
-
 
 	/*
 	err := bc.Db.View(func(tx *bolt.Tx) error {
@@ -270,7 +270,7 @@ func BlockchainObject() *Blockchain {
 
 	return &Blockchain{tip, db}
 }
-
+/*
 // 如果一个地址对应的TXOutput未花费，那么这个Transaction就应该添加到数组中返回
 func (blockchain *Blockchain) UnUTXOs(address string, txs []*Transaction) []*UTXO {
 
@@ -437,7 +437,192 @@ func (blockchain *Blockchain) UnUTXOs(address string, txs []*Transaction) []*UTX
 	}
 
 	return unUTXOs
+}*/
+
+
+
+// 如果一个地址对应的TXOutput未花费，那么这个Transaction就应该添加到数组中返回
+func (blockchain *Blockchain) UnUTXOs(address string,txs []*Transaction) []*UTXO {
+
+
+
+	var unUTXOs []*UTXO
+
+	spentTXOutputs := make(map[string][]int)
+
+	//{hash:[0]}
+
+	for _,tx := range txs {
+
+		if tx.IsCoinbaseTransaction() == false {
+			for _, in := range tx.Vins {
+				//是否能够解锁
+				publicKeyHash := Base58Decode([]byte(address))
+
+				ripemd160Hash := publicKeyHash[1:len(publicKeyHash) - 4]
+				if in.UnLockRipemd160Hash(ripemd160Hash) {
+
+					key := hex.EncodeToString(in.TxHash)
+
+					spentTXOutputs[key] = append(spentTXOutputs[key], in.Vout)
+				}
+
+			}
+		}
+	}
+
+
+	for _,tx := range txs {
+
+	Work1:
+		for index,out := range tx.Vouts {
+
+			if out.UnLockScriptPubKeyWithAddress(address) {
+				fmt.Println("看看是否是俊诚...")
+				fmt.Println(address)
+
+				fmt.Println(spentTXOutputs)
+
+				if len(spentTXOutputs) == 0 {
+					utxo := &UTXO{tx.TxHash, index, out}
+					unUTXOs = append(unUTXOs, utxo)
+				} else {
+					for hash,indexArray := range spentTXOutputs {
+
+						txHashStr := hex.EncodeToString(tx.TxHash)
+
+						if hash == txHashStr {
+
+							var isUnSpentUTXO bool
+
+							for _,outIndex := range indexArray {
+
+								if index == outIndex {
+									isUnSpentUTXO = true
+									continue Work1
+								}
+
+								if isUnSpentUTXO == false {
+									utxo := &UTXO{tx.TxHash, index, out}
+									unUTXOs = append(unUTXOs, utxo)
+								}
+							}
+						} else {
+							utxo := &UTXO{tx.TxHash, index, out}
+							unUTXOs = append(unUTXOs, utxo)
+						}
+					}
+				}
+
+			}
+
+		}
+
+	}
+
+
+
+
+	blockIterator := blockchain.Iterator()
+
+	for {
+
+		block := blockIterator.Next()
+
+		fmt.Println(block)
+		fmt.Println()
+
+		for i := len(block.Txs) - 1; i >= 0 ; i-- {
+
+			tx := block.Txs[i]
+			// txHash
+			// Vins
+			if tx.IsCoinbaseTransaction() == false {
+				for _, in := range tx.Vins {
+					//是否能够解锁
+					publicKeyHash := Base58Decode([]byte(address))
+
+					ripemd160Hash := publicKeyHash[1:len(publicKeyHash) - 4]
+
+					if in.UnLockRipemd160Hash(ripemd160Hash) {
+
+						key := hex.EncodeToString(in.TxHash)
+
+						spentTXOutputs[key] = append(spentTXOutputs[key], in.Vout)
+					}
+
+				}
+			}
+
+			// Vouts
+
+		work:
+			for index, out := range tx.Vouts {
+
+				if out.UnLockScriptPubKeyWithAddress(address) {
+
+					fmt.Println(out)
+					fmt.Println(spentTXOutputs)
+
+					//&{2 zhangqiang}
+					//map[]
+
+					if spentTXOutputs != nil {
+
+						//map[cea12d33b2e7083221bf3401764fb661fd6c34fab50f5460e77628c42ca0e92b:[0]]
+
+						if len(spentTXOutputs) != 0 {
+
+							var isSpentUTXO bool
+
+							for txHash, indexArray := range spentTXOutputs {
+
+								for _, i := range indexArray {
+									if index == i && txHash == hex.EncodeToString(tx.TxHash) {
+										isSpentUTXO = true
+										continue work
+									}
+								}
+							}
+
+							if isSpentUTXO == false {
+
+								utxo := &UTXO{tx.TxHash, index, out}
+								unUTXOs = append(unUTXOs, utxo)
+
+							}
+						} else {
+							utxo := &UTXO{tx.TxHash, index, out}
+							unUTXOs = append(unUTXOs, utxo)
+						}
+
+					}
+				}
+
+			}
+
+		}
+
+		fmt.Println(spentTXOutputs)
+
+		var hashInt big.Int
+		hashInt.SetBytes(block.PrevBlockHash)
+
+		// Cmp compares x and y and returns:
+		//
+		//   -1 if x <  y
+		//    0 if x == y
+		//   +1 if x >  y
+		if hashInt.Cmp(big.NewInt(0)) == 0 {
+			break;
+		}
+
+	}
+
+	return unUTXOs
 }
+
+
 
 // 转账时查找可用的UTXO
 func (blockchain *Blockchain) FindSpendableUTXOS(from string, amount int, txs []*Transaction) (int64, map[string][]int) {
@@ -576,13 +761,13 @@ func (blc *Blockchain) Printchain() {
 			for _, in := range tx.Vins {
 				fmt.Printf("%x\n", in.TxHash)
 				fmt.Printf("%d\n", in.Vout)
-				fmt.Printf("%s\n", in.ScriptSig)
+				fmt.Printf("%s\n", in.PublicKey)
 			}
 
 			fmt.Println("Vouts:")
 			for _, out := range tx.Vouts {
 
-				fmt.Printf("%s:%d\n",out.ScriptPubKey,out.Value)
+				fmt.Printf("%s:%d\n",out.Ripemd160Hash,out.Value)
 				//fmt.Println(out.Value)
 
 			}
@@ -604,4 +789,71 @@ func (blc *Blockchain) Printchain() {
 		}
 	}
 
+}
+
+
+
+
+func (bclockchain *Blockchain) SignTransaction(tx *Transaction,privKey ecdsa.PrivateKey)  {
+
+	if tx.IsCoinbaseTransaction() {
+		return
+	}
+
+	prevTXs := make(map[string]Transaction)
+
+	for _, vin := range tx.Vins {
+		prevTX, err := bclockchain.FindTransaction(vin.TxHash)
+		if err != nil {
+			log.Panic(err)
+		}
+		prevTXs[hex.EncodeToString(prevTX.TxHash)] = prevTX
+	}
+
+	tx.Sign(privKey, prevTXs)
+
+}
+
+
+func (bc *Blockchain) FindTransaction(ID []byte) (Transaction, error) {
+
+	bci := bc.Iterator()
+
+	for {
+		block := bci.Next()
+
+		for _, tx := range block.Txs {
+			if bytes.Compare(tx.TxHash, ID) == 0 {
+				return *tx, nil
+			}
+		}
+
+		var hashInt big.Int
+		hashInt.SetBytes(block.PrevBlockHash)
+
+
+		if big.NewInt(0).Cmp(&hashInt) == 0 {
+			break;
+		}
+	}
+
+	return Transaction{},nil
+}
+
+
+// 验证数字签名
+func (bc *Blockchain) VerifyTransaction(tx *Transaction) bool {
+
+
+	prevTXs := make(map[string]Transaction)
+
+	for _, vin := range tx.Vins {
+		prevTX, err := bc.FindTransaction(vin.TxHash)
+		if err != nil {
+			log.Panic(err)
+		}
+		prevTXs[hex.EncodeToString(prevTX.TxHash)] = prevTX
+	}
+
+	return tx.Verify(prevTXs)
 }

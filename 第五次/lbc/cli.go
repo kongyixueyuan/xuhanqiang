@@ -108,7 +108,7 @@ func (cli *CLI) Run() {
 		break
 
 	case "version":
-		println("V1.0.1")
+		println("V1.0.5")
 		break
 
 	case "getbalance":
