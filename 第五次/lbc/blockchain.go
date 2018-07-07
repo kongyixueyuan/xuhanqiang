@@ -658,6 +658,7 @@ func (blockchain *Blockchain) FindSpendableUTXOS(from string, amount int, txs []
 	return value, spendableUTXO
 }
 
+
 // 挖掘新的区块
 func (blockchain *Blockchain) MineNewBlock(from []string, to []string, amount []string) {
 
@@ -700,6 +701,15 @@ func (blockchain *Blockchain) MineNewBlock(from []string, to []string, amount []
 		return nil
 	})
 
+	// 在建立新区块之前对txs进行签名验证
+
+	for _,tx := range txs  {
+
+		if blockchain.VerifyTransaction(tx) != true {
+			log.Panic("ERROR: Invalid transaction")
+		}
+	}
+
 	//2. 建立新的区块
 	//	block = NewBlock(txs, block.Height+1, block.Hash)
 	block = NewBlock(txs, block.Height+1,block.Hash)
@@ -720,6 +730,9 @@ func (blockchain *Blockchain) MineNewBlock(from []string, to []string, amount []
 	})
 
 }
+
+
+
 
 // 查询余额
 func (blockchain *Blockchain) GetBalance(address string) int64 {
