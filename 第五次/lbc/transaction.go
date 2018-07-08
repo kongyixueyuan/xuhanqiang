@@ -10,6 +10,8 @@ import (
 	"encoding/hex"
 	"log"
 	"math/big"
+	"fmt"
+	"os"
 )
 
 // UTXO
@@ -122,6 +124,15 @@ func NewSimpleTransaction(from string, to string, amount int, blockchain *Blockc
 	//	[juncheng]
 	//	[zhangqiang]
 	//	[2]
+
+	//验证接收地址是否有效
+
+	if IsValidForAdress([]byte(to)) == false{
+		fmt.Println("接收地址无效....")
+		os.Exit(1)
+	}
+
+
 
 	wallets, _ := NewWallets()
 	wallet := wallets.WalletsMap[from]
