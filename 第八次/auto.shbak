@@ -1,0 +1,51 @@
+rm -rf main
+echo "go build main.go:"
+go build main.go
+echo "---------------------------------------------------"
+echo "./main addresslists:"
+#./main addresslists
+#address=$(./main addresslists)
+address=`./main addresslists`
+
+address2=`echo $address`
+
+
+IFS='  '
+OLD_IFS="$IFS"
+arr=($address2)
+#echo ${arr[3]}
+
+for s in ${arr[@]}
+do
+	echo "$s"
+done
+
+for i in 1 2 3
+do 
+		echo $i
+
+		echo ${arr[$i]}
+	done
+
+#echo ${arr[2]}
+#echo ${#arr[@]}
+
+echo "---------------------------------------------------"
+
+echo "./main addblock -address \"13aEcxAFNxHiYWCLLXgCoAKFU1bkHwYe95\""
+./main addblock -address "13aEcxAFNxHiYWCLLXgCoAKFU1bkHwYe95"
+echo "---------------------------------------------------"
+
+#echo "./main send -from '[\"13aEcxAFNxHiYWCLLXgCoAKFU1bkHwYe95\"]' -to '[\"18YeNiBDFFjSYubeJRpeCZzwyj9PKMwjaY\"]' -amount '[\"3\"]'"
+#./main send -from '["13aEcxAFNxHiYWCLLXgCoAKFU1bkHwYe95"]' -to '["18YeNiBDFFjSYubeJRpeCZzwyj9PKMwjaY"]' -amount '["3"]'
+#echo "---------------------------------------------------"
+
+echo "./main getbalance -address \"13aEcxAFNxHiYWCLLXgCoAKFU1bkHwYe95\""
+./main getbalance -address "13aEcxAFNxHiYWCLLXgCoAKFU1bkHwYe95"
+echo "---------------------------------------------------"
+echo "./main getbalance -address \"18YeNiBDFFjSYubeJRpeCZzwyj9PKMwjaY\""
+./main getbalance -address "18YeNiBDFFjSYubeJRpeCZzwyj9PKMwjaY"
+echo "---------------------------------------------------"
+echo "./main getbalance -address \"12EYjedmN9HkyUrcs5XUBcCu8yimehXGtW\""
+./main getbalance -address "12EYjedmN9HkyUrcs5XUBcCu8yimehXGtW"
+echo "---------------------------------------------------"
