@@ -130,7 +130,8 @@ func (i *XHQ_BlockchainIterator) Next() *Block {
 // 创建一个带有创世区块的区块链。
 func NewBlockchain(address string) *Blockchain {
 	var tip []byte
-	db, err := bolt.Open(dbFile, 0600, nil)
+
+	db, err := bolt.Open(dbName, 0600, nil)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -178,7 +179,8 @@ func NewBlockchain(address string) *Blockchain {
 }
 
 // 判断数据库是否存在
-func DBExists() bool {
+func DBExists(nodeID string) bool {
+	dbName := fmt.Sprintf(dbName,nodeID)
 	if _, err := os.Stat(dbName); os.IsNotExist(err) {
 		return false
 	}
@@ -188,10 +190,12 @@ func DBExists() bool {
 
 ///
 //1. 创建带有创世区块的区块链
-func XHQ_CreateBlockchainWithGenesisBlock(address string) *Blockchain {
+func XHQ_CreateBlockchainWithGenesisBlock(address string,nodeID string) *Blockchain {
+
+	dbName := fmt.Sprintf(dbName,nodeID)
 
 	// 判断数据库是否存在
-	if DBExists() {
+	if DBExists(nodeID) {
 		fmt.Println("创世区块已经存在.......")
 		os.Exit(1)
 	}
@@ -841,7 +845,7 @@ func (blc *Blockchain) XHQ_Printchain(nodeId string) {
 	fmt.Println("遍历区块链，打印：")
 	blockchainIterator := blc.Iterator()
 
-	for {
+		for {
 		block := blockchainIterator.Next()
 
 		fmt.Printf("Height：%d\n", block.Height)
@@ -1028,6 +1032,7 @@ func (bc *Blockchain) VerifyTransaction(tx *Transaction, txs []*Transaction) boo
 }
 
 //
+/*
 
 func (blc *Blockchain) XHQ_FindUTXOMap() map[string]*XHQ_TXOutputs {
 
@@ -1151,6 +1156,106 @@ func (blc *Blockchain) XHQ_FindUTXOMap() map[string]*XHQ_TXOutputs {
 	}
 	return utxoMaps
 }
+*/
+
+
+
+// [string]*TXOutputs
+func (blc *Blockchain) XHQ_FindUTXOMap() map[string]*XHQ_TXOutputs  {
+
+	blcIterator := blc.Iterator()
+
+	// 存储已花费的UTXO的信息
+	spentableUTXOsMap := make(map[string][]*XHQ_TXInput)
+
+
+	utxoMaps := make(map[string]*XHQ_TXOutputs)
+
+
+	for {
+		block := blcIterator.Next()
+
+		for i := len(block.Txs) - 1; i >= 0 ;i-- {
+
+			txOutputs := &XHQ_TXOutputs{[]*UTXO{}}
+
+			tx := block.Txs[i]
+
+			// coinbase
+			if tx.XHQ_IsCoinbaseTransaction() == false {
+				for _,txInput := range tx.Vins {
+
+					txHash := hex.EncodeToString(txInput.TxHash)
+					spentableUTXOsMap[txHash] = append(spentableUTXOsMap[txHash],txInput)
+
+				}
+			}
+
+			txHash := hex.EncodeToString(tx.TxHash)
+
+			txInputs := spentableUTXOsMap[txHash]
+
+			if len(txInputs) > 0 {
+
+
+			WorkOutLoop:
+				for index,out := range tx.Vouts  {
+
+					for _,in := range  txInputs {
+
+						outPublicKey := out.Ripemd160Hash
+						inPublicKey := in.PublicKey
+
+
+						if bytes.Compare(outPublicKey,Ripemd160Hash(inPublicKey)) == 0 {
+							if index == in.Vout {
+
+								continue WorkOutLoop
+							} else {
+
+								utxo := &UTXO{tx.TxHash,index,out}
+								txOutputs.UTXOS = append(txOutputs.UTXOS,utxo)
+							}
+						}
+					}
+
+
+				}
+
+			} else {
+
+				for index,out := range tx.Vouts {
+					utxo := &UTXO{tx.TxHash,index,out}
+					txOutputs.UTXOS = append(txOutputs.UTXOS,utxo)
+				}
+			}
+
+
+			// 设置键值对
+			utxoMaps[txHash] = txOutputs
+
+		}
+
+
+		// 找到创世区块时退出
+		var hashInt big.Int
+		hashInt.SetBytes(block.XHQ_PrevBlockHash)
+
+		if hashInt.Cmp(big.NewInt(0)) == 0 {
+			break;
+		}
+
+
+
+	}
+
+	return utxoMaps
+}
+
+
+
+
+
 
 // FindUTXO finds all unspent transaction outputs and returns transactions with spent outputs removed
 func (bc *Blockchain) XHQ_FindUTXOMap_rwq() map[string]*XHQ_TXOutputs {

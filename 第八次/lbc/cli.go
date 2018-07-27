@@ -45,7 +45,7 @@ func (cli *CLI) XHQ_validateArgs() {
 
 func (cli *CLI) printChain(nodeID string) {
 
-	if DBExists() == false {
+	if DBExists(nodeID) == false {
 		fmt.Println("数据不存在.......")
 		os.Exit(1)
 	}
@@ -177,7 +177,7 @@ func (cli *CLI) Run() {
 			os.Exit(1)
 		}
 
-		cli.createGenesisBlockchain(*addBlockData)
+		cli.createGenesisBlockchain(*addBlockData,nodeID)
 	}
 
 	if printChainCmd.Parsed() {
@@ -278,7 +278,7 @@ func (cli *CLI) send(from []string, to []string, amount []string) {
 func (cli *CLI) send(from []string,to []string,amount []string,nodeID string,mineNow bool)  {
 
 
-	if DBExists() == false {
+	if DBExists(nodeID) == false {
 		fmt.Println("数据不存在.......")
 		os.Exit(1)
 	}
@@ -288,10 +288,10 @@ func (cli *CLI) send(from []string,to []string,amount []string,nodeID string,min
 
 	blockchain.XHQ_MineNewBlock(from,to,amount,nodeID)
 
-	//utxoSet := &XHQ_UTXOSet{blockchain}
+	utxoSet := &XHQ_UTXOSet{blockchain}
 
 	//转账成功以后，需要更新一下
-	//utxoSet.Update()
+	utxoSet.Update()
 
 }
 
@@ -319,9 +319,13 @@ func (cli *CLI) XHQ_addressLists() {
 	}
 }
 
-func (cli *CLI) createGenesisBlockchain(address string) {
-	blockchain := XHQ_CreateBlockchainWithGenesisBlock(address)
+func (cli *CLI) createGenesisBlockchain(address string,nodeID string) {
+	blockchain := XHQ_CreateBlockchainWithGenesisBlock(address,nodeID)
 	defer blockchain.Db.Close()
+
+	utxoSet := &XHQ_UTXOSet{blockchain}
+	utxoSet.ResetXHQ_UTXOSet()
+
 }
 
 func (cli *CLI) XHQ_createWallet() {

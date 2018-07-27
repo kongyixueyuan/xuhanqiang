@@ -10,7 +10,7 @@ type XHQ_TXInput struct {
 	// 3. 用户名
 	//ScriptSig string
 
-	Signature []byte // 数字签名
+	Signature []byte //数字签名
 
 	PublicKey    []byte // 公钥，钱包里面
 

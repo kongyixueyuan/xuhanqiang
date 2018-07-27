@@ -24,7 +24,6 @@ do
 
 done
 
-echo "---------------------------------------------------"
 echo "./main addblock -address \"13aEcxAFNxHiYWCLLXgCoAKFU1bkHwYe95\""
 ./main addblock -address "13aEcxAFNxHiYWCLLXgCoAKFU1bkHwYe95"
 echo "---------------------------------------------------"

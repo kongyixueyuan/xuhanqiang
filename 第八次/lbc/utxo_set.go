@@ -15,6 +15,7 @@ const utxoTableName = "utxoTableName"
 type XHQ_UTXOSet struct {
 	Blockchain *Blockchain
 }
+/*
 
 // 重置数据库表
 func (utxoSet *XHQ_UTXOSet) ResetXHQ_UTXOSet() {
@@ -49,6 +50,55 @@ func (utxoSet *XHQ_UTXOSet) ResetXHQ_UTXOSet() {
 		log.Panic(err)
 	}
 }
+*/
+
+
+
+// 重置数据库表
+func (utxoSet *XHQ_UTXOSet) ResetXHQ_UTXOSet()  {
+
+	err := utxoSet.Blockchain.Db.Update(func(tx *bolt.Tx) error {
+
+		b := tx.Bucket([]byte(utxoTableName))
+
+		if b != nil {
+
+
+			err := tx.DeleteBucket([]byte(utxoTableName))
+
+			if err!= nil {
+				log.Panic(err)
+			}
+
+		}
+
+		b ,_ = tx.CreateBucket([]byte(utxoTableName))
+		if b != nil {
+
+			//[string]*TXOutputs
+			txOutputsMap := utxoSet.Blockchain.XHQ_FindUTXOMap()
+
+
+			for keyHash,outs := range txOutputsMap {
+
+				txHash,_ := hex.DecodeString(keyHash)
+
+				b.Put(txHash,outs.XHQ_Serialize())
+
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println("重置失败....")
+		log.Panic(err)
+	}
+
+}
+
+
 
 func (utxoSet *XHQ_UTXOSet) XHQ_GetBalance(address string) int64 {
 
@@ -236,6 +286,7 @@ func (utxoSet *XHQ_UTXOSet) XHQ_FindUnPackageSpendableUTXOS(from string, txs []*
 
 
 
+/*
 
 // 更新
 func (utxoSet *XHQ_UTXOSet) Update()  {
@@ -369,7 +420,144 @@ func (utxoSet *XHQ_UTXOSet) Update()  {
 	}
 
 }
+*/
 
+
+
+
+
+// 更新
+func (utxoSet *XHQ_UTXOSet) Update()  {
+
+	// blocks
+	//
+
+
+	// 最新的Block
+	block := utxoSet.Blockchain.Iterator().Next()
+
+
+	// utxoTable
+	//
+
+	ins := []*XHQ_TXInput{}
+
+	outsMap := make(map[string]*XHQ_TXOutputs)
+
+	// 找到所有我要删除的数据
+	for _,tx := range block.Txs {
+
+		for _,in := range tx.Vins {
+			ins = append(ins,in)
+		}
+	}
+
+	for _,tx := range block.Txs  {
+
+
+		utxos := []*UTXO{}
+
+		for index,out := range tx.Vouts  {
+
+			isSpent := false
+
+			for _,in := range ins  {
+
+				if in.Vout == index && bytes.Compare(tx.TxHash ,in.TxHash) == 0 && bytes.Compare(out.Ripemd160Hash,Ripemd160Hash(in.PublicKey)) == 0 {
+
+					isSpent = true
+					continue
+				}
+			}
+
+			if isSpent == false {
+				utxo := &UTXO{tx.TxHash,index,out}
+				utxos = append(utxos,utxo)
+			}
+
+		}
+
+		if len(utxos) > 0 {
+			txHash := hex.EncodeToString(tx.TxHash)
+			outsMap[txHash] = &XHQ_TXOutputs{utxos}
+		}
+
+	}
+
+
+
+	err := utxoSet.Blockchain.Db.Update(func(tx *bolt.Tx) error{
+
+		b := tx.Bucket([]byte(utxoTableName))
+
+		if b != nil {
+
+
+			// 删除
+			for _,in := range ins {
+
+				txOutputsBytes := b.Get(in.TxHash)
+
+				if len(txOutputsBytes) == 0 {
+					continue
+				}
+
+				fmt.Println("DeserializeTXOutputs")
+				fmt.Println(txOutputsBytes)
+
+				txOutputs := DeserializeXHQ_TXOutputs(txOutputsBytes)
+
+				fmt.Println(txOutputs)
+
+				UTXOS := []*UTXO{}
+
+				// 判断是否需要
+				isNeedDelete := false
+
+				for _,utxo := range txOutputs.UTXOS  {
+
+					if in.Vout == utxo.Index && bytes.Compare(utxo.Output.Ripemd160Hash,Ripemd160Hash(in.PublicKey)) == 0 {
+
+						isNeedDelete = true
+					} else {
+						UTXOS = append(UTXOS,utxo)
+					}
+				}
+
+
+
+				if isNeedDelete {
+					b.Delete(in.TxHash)
+					if len(UTXOS) > 0 {
+
+						preTXOutputs := outsMap[hex.EncodeToString(in.TxHash)]
+
+						preTXOutputs.UTXOS = append(preTXOutputs.UTXOS,UTXOS...)
+
+						outsMap[hex.EncodeToString(in.TxHash)] = preTXOutputs
+
+					}
+				}
+
+			}
+
+			// 新增
+
+			for keyHash,outPuts := range outsMap  {
+				keyHashBytes,_ := hex.DecodeString(keyHash)
+				b.Put(keyHashBytes,outPuts.XHQ_Serialize())
+			}
+
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+}
 
 
 
